@@ -1,33 +1,47 @@
 # image
-image: Visual Studio 2015
+image: Visual Studio 2017
 
 # build platform
 platform: x64
+
+skip_non_tags: true
 
 # clone directory
 clone_folder: c:\xmr-stak
 
 install:
-  - mkdir c:\xmr-stak-dep
-  - curl -sL https://github.com/fireice-uk/xmr-stak-dep/releases/download/v1/xmr-stak-dep.zip -o xmr-stak-dep.zip
-  - 7z x xmr-stak-dep.zip -o"c:\xmr-stak-dep" -y > nul
-  - appveyor DownloadFile  https://developer.nvidia.com/compute/cuda/8.0/prod/local_installers/cuda_8.0.44_windows-exe -FileName cuda_8.0.44_windows.exe
-  - cuda_8.0.44_windows.exe -s compiler_8.0 cudart_8.0
-  - set PATH=%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin;%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v8.0\libnvvp;%PATH%
-  - nvcc -V
+  - curl -sL https://github.com/fireice-uk/xmr-stak-dep/releases/download/v2/xmr-stak-dep.zip -o xmr-stak-dep.zip
+  - 7z x xmr-stak-dep.zip -o"c:\" -y > nul
+  - appveyor DownloadFile http://amd-dev.wpengine.netdna-cdn.com/app-sdk/installers/APPSDKInstaller/3.0.130.135-GA/full/AMD-APP-SDKInstaller-v3.0.130.135-GA-windows-F-x64.exe -FileName amd_3.0_x64.exe
+  - amd_3.0_x64.exe /s /v/qn
+  - set AMDAPPSDKROOT=C:\Program Files (x86)\AMD APP SDK\3.0
+  - set PATH=%AMDAPPSDKROOT%\bin\x86_64\;%PATH%
 
 build_script:
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\Tools\VsMSBuildCmd.bat"
+  - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsMSBuildCmd.bat"
   - cd c:\xmr-stak
   - mkdir build
   - cd build
-  - set CMAKE_PREFIX_PATH=C:\xmr-stak-dep\hwloc;C:\xmr-stak-dep\libmicrohttpd;C:\xmr-stak-dep\openssl;
-  - cmake -G "Visual Studio 14 2015 Win64" -T v140,host=x64 .. -DCUDA_ARCH=30
+  - cmake -G "Visual Studio 15 2017 Win64" -T v141,host=x64 .. -DCUDA_ENABLE=OFF -DCMAKE_PREFIX_PATH="C:\xmr-stak-dep\hwloc;C:\xmr-stak-dep\libmicrohttpd;C:\xmr-stak-dep\openssl"
   - cmake --build . --config Release --target install
 
-test_script:
+after_build:
   - cd c:\xmr-stak\build\bin\Release
-  - dir
+  - del *.lib *.exp
   - copy C:\xmr-stak-dep\openssl\bin\* .
-  - set XMRSTAK_NOWAIT=1
-  - xmr-stak.exe --help --noUAC
+  - 7z a ..\xmr-stak.zip ..\Release
+
+test_script:
+  - dir
+
+artifacts:
+  - path: build\bin\xmr-stak.zip
+    name: xmr-stak
+
+deploy:
+  - provider: GitHub
+    description: |
+      xmr-stak x64 without CUDA
+    auth_token:
+      secure: DZcff8SM/8matSqzA6OjvZBZC7eD8i1KJJFHK99PVCwkH0N+0vs5KBWl97pTG8W/
+    artifact: xmr-stak
